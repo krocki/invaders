@@ -67,6 +67,15 @@ int fail=0;
 u8 ram[RAM_S];
 u8 vram[SCR_H * SCR_W/8];
 
+/*
+0000-1FFF 8K ROM
+2000-23FF 1K RAM
+// [2000] - [2100] -> ram
+// [2300-2400] - Stack
+2400-3FFF 7K Video RAM
+4000- RAM mirror
+*/
+
 void mem_load(u8 *at, char *fname) {
 
   FILE *f = fopen(fname, "rb");
