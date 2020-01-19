@@ -60,12 +60,9 @@ u8* ptrs(cpu* c, u8 idx) {
 
 int fail=0;
 
-#define RAM_S 2048
-#define SCR_W 224
-#define SCR_H 256
+#define MEMSIZE 16384
 
-u8 ram[RAM_S];
-u8 vram[SCR_H * SCR_W/8];
+u8 mem[MEMSIZE];
 
 /*
 0000-1FFF 8K ROM
@@ -126,13 +123,14 @@ void reg_print(cpu *c) {
 }
 
 
-u8 r8(u16 a) { return ram[a]; }
+u8 r8(u16 a) { return mem[a]; }
 u16 r16(u16 a) { return ((u16)(r8(a+1)) << 8) | (u16)(r8(a)); }
 u8 f8(cpu *c) { u8 v = r8(PC++); return v; }
 u16 f16(cpu *c) { u16 v = r16(PC); PC+=2; return v; }
-void w8(u16 a, u8 v) { ram[a] = v; printf("W [%04x] <- %02x\n", a, v); }
+void w8(u16 a, u8 v) { mem[a] = v; printf("W [%04x] <- %02x\n", a, v); }
 void w16(u16 a, u16 v) { w8(a,v&0xff); w8(a+1,v>>8); }
 void push16(cpu *c, u16 v) { SP -= 2; w16(SP, v); }
+u16 pop16(cpu *c) { u16 v = r16(SP); SP+=2; return v; }
 
 u8 inc8(cpu* c, u8 v) {
    u8 r = v + 1;
@@ -163,9 +161,42 @@ void ldrr(cpu *c) {
     if (dst_idx != 6) *PTR_REG(dst_idx) = src; else w8(HL, src);
 }
 
+void _sub8(cpu *c, u8 v, u8 carry) {
+  // use carry?
+  u8 _c = carry ? fC : 0;
+  u8 r = A;
+  r = A - v - _c;
+  // update flags
+  fZ = (r == 0); fH = (((A & 0xf) < ((v & 0xf) + _c))) ? 1 : 0; fN = 1;
+  fC = (((u16)(A) < (u16)(v) + (u16)(_c))) ? 1 : 0;
+  A = r;
+}
+
+void sub8(cpu *c, u8 v) { _sub8(c, v, 0); }
+void cp8 (cpu *c, u8 v)  { u8 r = A; _sub8(c, v, 0); A = r; }
+
+// 8-bit alu
+void alu(cpu *c) {
+  u8 src_idx = c->op & 0x7; //last 3 bits are reg#
+  u8 src = (((c->op >> 6) & 0x3) == 3) ? f8(c) : src_idx == 6 ? r8(HL) : *(PTR_REG(src_idx));
+  u8 n = (c->op >> 3) & 0x07;
+
+  switch (n) { // subgroup, bits xxNNNyyy
+    case 0: /*add8(g, src);*/ break; // 00000yyy
+    case 1: /*adc8(g, src);*/ break; // 00001yyy
+    case 2: /*sub8(g, src);*/ break; // 00010yyy
+    case 3: /*sbc8(g, src);*/ break; // 00011yyy
+    case 4: /*and8(g, src);*/ break; // 00100yyy
+    case 5: /*xor8(g, src);*/ break; // 00101yyy
+    case 6: /*or8(g, src); */ break; // 00110yyy
+    case 7: cp8(c, src);  break; // 00111yyy
+  };
+}
+
 void unk(cpu *c)  { fail=1; puts("UNK"); };
 void nop(cpu *c)  { };
 void call(cpu *c) { push16(c, PC+2); PC=r16(PC); }
+void ret(cpu *c)  { PC = pop16(c); }
 void jmp(cpu *c)  { PC = f16(c);}
 void jnz(cpu *c)  { u16 a = f16(c); PC = !fZ ? a : PC; } //JNZ a16
 void ldsp(cpu *c) { SP = f16(c); }
@@ -174,6 +205,7 @@ void x21(cpu *c)  { HL = f16(c); }
 void x1a(cpu *c)  { A = r16(DE); }
 void x13(cpu *c)  { DE++; }
 void x23(cpu *c)  { HL++; }
+
 void *ops[256];
 
 void ops_init() {
@@ -198,12 +230,20 @@ void ops_init() {
   for (u8 i=0x40; i<0x80; i++) ops[i]=&ldrr;
   ops[0xc2]=&jnz;
   ops[0xc3]=&jmp;
+  ops[0xc9]=&ret;
+
+  for (u8 i=0x80; i<0xc0; i++) ops[i] = &alu;
+  ops[0xc6]=&alu; ops[0xce]=&alu;
+  ops[0xd6]=&alu; ops[0xde]=&alu;
+  ops[0xe6]=&alu; ops[0xee]=&alu;
+  ops[0xf6]=&alu; ops[0xfe]=&alu;
+
   ops[0xcd]=&call;
 }
 
 void cpu_step(cpu *c) {
 
-  c->op = ram[PC];
+  c->op = mem[PC];
   reg_print(c);
   PC++;
   ((void(*)(cpu*))ops[c->op])(c);
@@ -221,11 +261,10 @@ int main(int argc, char **argv) {
 
   u16 load_at = 0;
 
-  mem_clear(ram, RAM_S);
-  mem_clear(vram, SCR_H * SCR_W/8);
+  mem_clear(mem, MEMSIZE);
 
-  mem_load(&ram[load_at], romname);
-  mem_print(ram, 32);
+  mem_load(&mem[load_at], romname);
+  mem_print(mem, 32);
 
   cpu c;
   mem_clear((u8*)&c, sizeof(cpu));
