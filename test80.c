@@ -13,6 +13,8 @@ u8 mem[MEMSIZE];
 4000- RAM mirror
 */
 
+extern void emu(cpu *c, u8 *m);
+
 void cpu_step(cpu *c) {
 
   c->op = mem[PC];
@@ -48,6 +50,9 @@ int main(int argc, char **argv) {
     printf("[%5u], ", i++);
     cpu_step(&c);
   }
-
+  //for (int i=0; i<20; i++) {
+  //  emu(&c, mem);
+  //  reg_print(&c);
+  //}
   return 0;
 }
