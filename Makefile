@@ -1,23 +1,27 @@
-.SUFFIXES:
-TARGETS=test80
-
-AS=gcc
 CC=gcc
-LD=gcc
-CFLAGS=-g -Wfatal-errors -O1
-LFLAGS=-g
-AFLAGS=
+TARGETS = screen
+CFLAGS = -g -std=c99 -Wfatal-errors -Wall -pedantic -Wextra -DGL_SILENCE_DEPRECATION
+LFLAGS = -g -L/usr/local/lib -lm
+INCLUDES=-I/usr/local/include/
 HEADERS:=$(wildcard *.h) Makefile
+
+OS:=$(shell uname)
+ifeq ($(OS),Darwin) #OSX
+  GL_FLAGS=-lglew -lglfw -framework Cocoa -framework OpenGL -lpthread
+  CFLAGS:=$(CFLAGS) -DAPPLE
+else # Linux or other
+  GL_FLAGS=-lglfw -lGL -lpthread
+endif
+
+.SUFFIXES:
 
 all: $(TARGETS)
 
 %.o: %.c $(HEADERS)
-	$(CC) $(CFLAGS) -c $< -o $@
-%.o: %.s
-	$(AS) $(AFLAGS) -c $< -o $@
+	$(CC) $(INCLUDES) $(CFLAGS) -c $< -o $@
 
-test80: test80.o alu.o ldrr.o util.o ops.o emu.o
-	$(CC) $(CLAGS) $^ -o $@
+%: %.o
+	$(CC) -o $@ $^ $(LFLAGS) $(GL_FLAGS)
 
 clean:
-	rm -rf *.o *.dSYM $(TARGETS)
+	rm -rf $(TARGETS) *.o
