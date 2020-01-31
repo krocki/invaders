@@ -45,27 +45,59 @@ int gl_ok=0;
 int gl_pause=0;
 double t0;
 
-const char *vertex_shader =
-  "#version 410\n"
-  "layout (location = 0) in vec3 vp;"
-  "layout (location = 1) in vec2 vt;"
-  "out vec2 coords;"
-  "void main () {"
-  "  coords = vt;"
-  "  gl_Position = vec4(vp, 1.0);"
-  "}";
+const char *vs_name = "vs_pass.glsl";
+const char *fs_name = "fs_screen.glsl";
 
-const char *fragment_shader =
-  "#version 410\n"
-  "in vec2 coords;"
-  "uniform sampler2D tx;"
-  "uniform int mode;"
-  "out vec4 frag_color;"
-  "void main () {"
-  "  vec2 f_coords = (mode==1) ? coords.yx : coords.xy; "
-  "  frag_color = texture (tx, vec2(f_coords.x, f_coords.y));"
-  "}";
+char *load_src(const char *file) {
+  FILE *f = fopen(file, "r");
+  if (!f) {
+    fprintf(stderr,
+      "couldn't open %s\n", file);
+    return NULL;
+  }
+  fseek(f, 0L, SEEK_END);
+  int len = ftell(f);
+  rewind(f);
 
+  char *src = malloc(len+1);
+  size_t cnt = fread(src, len, 1, f);
+  if (0==cnt)
+    fprintf(stderr, "fread failed\n");
+  fclose(f);
+  src[len] = '\0';
+  return src;
+}
+
+void check_err(const char *m, GLuint *s) {
+  GLint res = GL_FALSE;
+  int log_len;
+  glGetShaderiv(*s, GL_COMPILE_STATUS, &res);
+  glGetShaderiv(*s, GL_INFO_LOG_LENGTH, &log_len);
+  if (log_len > 0) {
+    char *message = malloc(log_len+1);
+    glGetShaderInfoLog(*s, log_len, NULL, message);
+    printf("%s: %s\n", m, message);
+    free(message);
+  }
+}
+
+void load_shaders(GLuint *v, const char *vf,
+                 GLuint *f, const char *ff) {
+  char *v_src = load_src(vf);
+  char *f_src = load_src(ff);
+  *v = glCreateShader(GL_VERTEX_SHADER);
+  *f = glCreateShader(GL_FRAGMENT_SHADER);
+  glShaderSource(*v, 1, (const char*const*)&v_src, NULL);
+  glShaderSource(*f, 1, (const char*const*)&f_src, NULL);
+  glCompileShader(*v);
+  glCompileShader(*f);
+  free(v_src);
+  free(f_src);
+
+  /* check */
+  check_err("vertex shader", v);
+  check_err("fragment shader", f);
+}
 int display_init(int argc, char **argv) {
 
   GLuint width = argc > 1 ?
@@ -156,17 +188,8 @@ int display_init(int argc, char **argv) {
   glEnableVertexAttribArray(0);
   glEnableVertexAttribArray(1);
 
-  /* vertex shader */
-  vert_shader = glCreateShader(GL_VERTEX_SHADER);
-  glShaderSource(vert_shader, 1,
-    &vertex_shader, NULL);
-  glCompileShader(vert_shader);
-
-  /* fragment shader */
-  frag_shader = glCreateShader(GL_FRAGMENT_SHADER);
-  glShaderSource(frag_shader, 1,
-    &fragment_shader, NULL);
-  glCompileShader(frag_shader);
+  load_shaders(&vert_shader, vs_name,
+               &frag_shader, fs_name);
 
   /* link glsl program */
   shader_prog = glCreateProgram();
