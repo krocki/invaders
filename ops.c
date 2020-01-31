@@ -58,7 +58,7 @@ void xchg(cpu *c) {
 
 void out(cpu *c) {
   u8 v = f8(c);
-  printf("out = 0x%02x\n", v);
+  if (v != 0x06) printf("out = 0x%02x\n", v);
 }
 
 void di(cpu *c) {

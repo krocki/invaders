@@ -16,6 +16,29 @@
 #define SCR_W 256
 #define SCR_H 256
 
+#define bind_key(x,y) \
+{ if (action == GLFW_PRESS && key == (x)) (y) = 1; if (action == GLFW_RELEASE && key == (x)) (y) = 0; if (y) {printf(#y "\n");} }
+#define bind_key_toggle(x,y) \
+{ if (action == GLFW_PRESS && key == (x)) (y) = (y); if (action == GLFW_RELEASE && key == (x)) { (y) = 1-(y); printf(#x ", " #y "=%u\n", (y));} }
+
+
+u8 mode=0;
+u8 speed=0;
+u8 paused=0;
+u8 step=0;
+u8 verbose=0;
+u8 reset=1;
+
+void key_callback(GLFWwindow* window, int key, int scancode, int action, int mods) {
+
+  bind_key_toggle(GLFW_KEY_R,     reset);
+  bind_key_toggle(GLFW_KEY_M,     mode);
+  bind_key_toggle(GLFW_KEY_S,     speed);
+  bind_key_toggle(GLFW_KEY_P,     paused);
+  bind_key_toggle(GLFW_KEY_SPACE, step);
+  bind_key_toggle(GLFW_KEY_V,     verbose);
+}
+
 int gl_ok=0;
 int gl_pause=0;
 double t0;
@@ -162,6 +185,7 @@ int display_init(int argc, char **argv) {
   gl_ok = 1;
 
   printf("%9.6f, GL_init OK\n", glfwGetTime()-t0);
+  glfwSetKeyCallback(window, key_callback);
   /* main loop */
   while (!glfwWindowShouldClose(window)) {
     /* clear */
@@ -173,7 +197,7 @@ int display_init(int argc, char **argv) {
     glBindVertexArray(vao);
 
     /* draw */
-    glTexSubImage2D( GL_TEXTURE_2D, 0, 0, 0, TEX_W, TEX_H, GL_RGBA, GL_UNSIGNED_BYTE, mem_ptr );
+    glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, TEX_W, TEX_H, GL_RGBA, GL_UNSIGNED_BYTE, mem_ptr );
     glDrawArrays(GL_TRIANGLES, 0, 6);
 
     glfwPollEvents();
@@ -192,7 +216,7 @@ int display_init(int argc, char **argv) {
 void cpu_step(cpu *c) {
 
   c->op = mem[PC];
-  reg_print(c);
+  if (verbose) reg_print(c);
   PC++;
   ((void(*)(cpu*))ops[c->op])(c);
   c->cycl++;
@@ -204,23 +228,32 @@ void *work(void *args) {
   char *romname = (char*)args;
   printf("romname = %s\n", romname);
   u16 load_at = 0;
-  mem_clear(mem_ptr, MEMSIZE);
-  mem_load(&mem_ptr[load_at], romname);
-  mem_print(mem_ptr, 32);
+  //mem_clear(mem_ptr, MEMSIZE);
+  //mem_load(&mem_ptr[load_at], romname);
+  //mem_print(mem_ptr, 32);
+  //cpu c = {0};
   cpu c = {0};
   ops_init();
 
-  printf("%9.3f, GB starting...\n", glfwGetTime()-t0);
+  printf("%9.3f, CPU starting...\n", glfwGetTime()-t0);
   printf("%9.3f, reset ok, waiting for GL...\n", glfwGetTime()-t0);
 
   while (!gl_ok) usleep(10);
   printf("%9.3f, GL OK\n", glfwGetTime() - t0);
 
   while (gl_ok) {
+    if (reset) {
+      reset=0;
+      mem_clear(mem_ptr, MEMSIZE);
+      mem_load(&mem_ptr[load_at], romname);
+      c = (cpu){0};
+    }
     if (!fail) {
-      cpu_step(&c);
-      if (c.cycl > 37000) mem_1bpp(&mem_ptr[0x2400], 224, 256);
-      //mem_print(&mem_ptr[0x2400], 28);
+      if (speed) usleep(10000);
+      if (!paused || step) {
+        step = 0;
+        cpu_step(&c);
+      }
     } else {
       usleep(10000);
     }

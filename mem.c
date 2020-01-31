@@ -47,7 +47,7 @@ void mem_1bpp(u8 *a, u16 w, u16 h) {
   for (u16 l=0; l<lines; l++) {
   for (u16 c=0; c<cols; c++) {
     u8 v = a[cols*l+c];
-    printf("%04x, ", cols*l+c + 0x2400);
+    //printf("%04x, ", cols*l+c + 0x2400);
     //printf("%c%c%c%c%c%c%c%c",
     //(v>>0 & 0x1) ?'*':'.',
     //(v>>1 & 0x1) ?'*':'.',
@@ -58,7 +58,7 @@ void mem_1bpp(u8 *a, u16 w, u16 h) {
     //(v>>6 & 0x1) ?'*':'.',
     //(v>>7 & 0x1) ?'*':'.');
   }
-  printf("\n");
+  //printf("\n");
   }
 }
 
