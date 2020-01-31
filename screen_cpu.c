@@ -7,14 +7,16 @@
 #ifdef __APPLE__
 #include <OpenGL/gl3.h>
 #define GLFW_INCLUDE_GLCOREARB
+#else
+#define GL_GLEXT_PROTOTYPES
 #endif
 
 #include <GLFW/glfw3.h>
 
 #define TEX_W 64
 #define TEX_H 64
-#define SCR_W 256
-#define SCR_H 256
+#define SCR_W 512
+#define SCR_H 512
 
 #define bind_key(x,y) \
 { if (action == GLFW_PRESS && key == (x)) (y) = 1; if (action == GLFW_RELEASE && key == (x)) (y) = 0; if (y) {printf(#y "\n");} }
