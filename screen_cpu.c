@@ -57,9 +57,11 @@ const char *fragment_shader =
   "#version 410\n"
   "in vec2 coords;"
   "uniform sampler2D tx;"
+  "uniform int mode;"
   "out vec4 frag_color;"
   "void main () {"
-  "  frag_color = texture (tx, vec2(coords.x, coords.y));"
+  "  vec2 f_coords = (mode==1) ? coords.yx : coords.xy; "
+  "  frag_color = texture (tx, vec2(f_coords.x, f_coords.y));"
   "}";
 
 int display_init(int argc, char **argv) {
@@ -170,11 +172,10 @@ int display_init(int argc, char **argv) {
   glAttachShader(shader_prog, vert_shader);
   glLinkProgram(shader_prog);
 
-  GLuint tex;
-  glGenTextures( 1, &tex );
+  GLuint tex[2];
+  glGenTextures( 2, tex );
   glActiveTexture( GL_TEXTURE0 );
-  glBindTexture( GL_TEXTURE_2D, tex );
-
+  glBindTexture( GL_TEXTURE_2D, tex[0] );
   glTexImage2D( GL_TEXTURE_2D, 0, GL_RGBA, TEX_W, TEX_H, 0, GL_RGBA, GL_UNSIGNED_BYTE, mem_ptr );
   glGenerateMipmap( GL_TEXTURE_2D );
   glTexParameteri( GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE );
@@ -182,10 +183,12 @@ int display_init(int argc, char **argv) {
   glTexParameteri( GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST );
   glTexParameteri( GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_NEAREST );
 
+  GLuint frag_mode = glGetUniformLocation(shader_prog, "mode");
   gl_ok = 1;
 
   printf("%9.6f, GL_init OK\n", glfwGetTime()-t0);
   glfwSetKeyCallback(window, key_callback);
+
   /* main loop */
   while (!glfwWindowShouldClose(window)) {
     /* clear */
@@ -195,6 +198,8 @@ int display_init(int argc, char **argv) {
 
     glUseProgram(shader_prog);
     glBindVertexArray(vao);
+
+    glUniform1i(frag_mode, mode);
 
     /* draw */
     glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, TEX_W, TEX_H, GL_RGBA, GL_UNSIGNED_BYTE, mem_ptr );

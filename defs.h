@@ -29,6 +29,7 @@ typedef struct {
 } regs;
 
 typedef struct {
+  u8 ei; /* enable interrupts */
   regs r;
   u8 op;
   u64 cycl;

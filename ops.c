@@ -58,16 +58,12 @@ void xchg(cpu *c) {
 
 void out(cpu *c) {
   u8 v = f8(c);
-  if (v != 0x06) printf("out = 0x%02x\n", v);
+  if (v == 0x02) { printf("out shift amt = 0x%02x\n", v); }
+  if (v == 0x04) { printf("out shift data = 0x%02x\n", v); }
 }
 
-void di(cpu *c) {
-  printf("disable interrupts\n");
-}
-
-void ei(cpu *c) {
-  printf("enable interrupts\n");
-}
+void di(cpu *c) { c->ei = 0; }
+void ei(cpu *c) { c->ei = 1; }
 
 void call(cpu *c) { push16(c, PC+2); PC=r16(PC); }
 void ret(cpu *c)  { PC = pop16(c); }
