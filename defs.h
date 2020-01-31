@@ -57,7 +57,7 @@ typedef struct {
 #define PC (c->r.w[5])
 
 #define PTR_REG(x) ptrs(c, (x))
-#define MEMSIZE 0x10000
+#define MEMSIZE 0x40000
 
 extern void *ops[256];
 extern void ops_init();
@@ -68,7 +68,7 @@ extern void reg_print(cpu *c);
 extern void mem_load(u8 *at, char *fname);
 extern void mem_clear(u8 *a, u32 len);
 extern void mem_print(u8 *a, u32 len);
-extern void mem_1bpp(u8 *a, u16 w, u16 h);
+extern void mem_1bpp(u8 *dst, u8 *src, u16 w, u16 h);
 extern u8 r8(u16);
 extern void w8(u16, u8 v);
 extern u8 f8(cpu *c);

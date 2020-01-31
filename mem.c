@@ -26,8 +26,7 @@ void mem_load(u8 *at, char *fname) {
 void mem_clear(u8 *a, u32 len) {
 
   for (u32 i=0; i<len; i++)
-    a[i] = 0x65;
-
+    a[i] = 0x55;
 }
 
 void mem_print(u8 *a, u32 len) {
@@ -39,26 +38,23 @@ void mem_print(u8 *a, u32 len) {
   }
 }
 
-void mem_1bpp(u8 *a, u16 w, u16 h) {
+void mem_1bpp(u8 *s, u8 *m, u16 w, u16 h) {
 
   u16 lines=w;
   u16 cols=h/8;
 
   for (u16 l=0; l<lines; l++) {
-  for (u16 c=0; c<cols; c++) {
-    u8 v = a[cols*l+c];
-    //printf("%04x, ", cols*l+c + 0x2400);
-    //printf("%c%c%c%c%c%c%c%c",
-    //(v>>0 & 0x1) ?'*':'.',
-    //(v>>1 & 0x1) ?'*':'.',
-    //(v>>2 & 0x1) ?'*':'.',
-    //(v>>3 & 0x1) ?'*':'.',
-    //(v>>4 & 0x1) ?'*':'.',
-    //(v>>5 & 0x1) ?'*':'.',
-    //(v>>6 & 0x1) ?'*':'.',
-    //(v>>7 & 0x1) ?'*':'.');
-  }
-  //printf("\n");
+    for (u16 c=0; c<cols; c++) {
+      u16 addr = cols*l+c;
+      u8 v = m[addr];
+      for (u16 i=0; i<8; i++) {
+        u32 off = addr*8+i;
+        s[4*(off)+0] = ((v>>i) & 0x1) ? 0xff : 0x00;
+        s[4*(off)+1] = ((v>>i) & 0x1) ? 0xff : 0x00;
+        s[4*(off)+2] = ((v>>i) & 0x1) ? 0xff : 0x00;
+        s[4*(off)+3] = ((v>>i) & 0x1) ? 0xff : 0x00;
+      }
+    }
   }
 }
 
