@@ -1,8 +1,8 @@
 CC=gcc
-TARGETS = screen
-CFLAGS = -g -std=c99 -Wfatal-errors -Wall -pedantic -Wextra -DGL_SILENCE_DEPRECATION
+TARGETS = screen screen_cpu
+CFLAGS = -g -std=c11 -Wfatal-errors -DGL_SILENCE_DEPRECATION
 LFLAGS = -g -L/usr/local/lib -lm
-INCLUDES=-I/usr/local/include/
+INCLUDES=
 HEADERS:=$(wildcard *.h) Makefile
 
 OS:=$(shell uname)
@@ -20,7 +20,7 @@ all: $(TARGETS)
 %.o: %.c $(HEADERS)
 	$(CC) $(INCLUDES) $(CFLAGS) -c $< -o $@
 
-%: %.o
+%: %.o mem.o ops.o alu.o ldrr.o
 	$(CC) -o $@ $^ $(LFLAGS) $(GL_FLAGS)
 
 clean:
