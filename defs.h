@@ -67,6 +67,7 @@ extern void reg_print(cpu *c);
 extern void mem_load(u8 *at, char *fname);
 extern void mem_clear(u8 *a, u32 len);
 extern void mem_print(u8 *a, u32 len);
+extern void mem_1bpp(u8 *a, u16 w, u16 h);
 extern u8 r8(u16);
 extern void w8(u16, u8 v);
 extern u8 f8(cpu *c);

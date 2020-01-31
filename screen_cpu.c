@@ -219,7 +219,8 @@ void *work(void *args) {
   while (gl_ok) {
     if (!fail) {
       cpu_step(&c);
-      usleep(100);
+      if (c.cycl > 37000) mem_1bpp(&mem_ptr[0x2400], 224, 256);
+      //mem_print(&mem_ptr[0x2400], 28);
     } else {
       usleep(10000);
     }
