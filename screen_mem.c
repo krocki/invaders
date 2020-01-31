@@ -1,3 +1,4 @@
+#include "defs.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <pthread.h>
@@ -12,56 +13,91 @@
 
 #include <GLFW/glfw3.h>
 
-#define W 64
-#define H 64
-#define SCR_W 256
-#define SCR_H 256
+#define TEX_W 64
+#define TEX_H 64
+#define SCR_W 512
+#define SCR_H 512
 
-GLbyte data[W*H*4];
+#define bind_key(x,y) \
+{ if (action == GLFW_PRESS && key == (x)) (y) = 1; if (action == GLFW_RELEASE && key == (x)) (y) = 0; if (y) {printf(#y "\n");} }
+#define bind_key_toggle(x,y) \
+{ if (action == GLFW_PRESS && key == (x)) (y) = (y); if (action == GLFW_RELEASE && key == (x)) { (y) = 1-(y); printf(#x ", " #y "=%u\n", (y));} }
+
+
+u8 mode=0;
+u8 speed=0;
+u8 paused=0;
+u8 step=0;
+u8 verbose=0;
+u8 reset=1;
+
+void key_callback(GLFWwindow* window, int key, int scancode, int action, int mods) {
+
+  bind_key_toggle(GLFW_KEY_R,     reset);
+  bind_key_toggle(GLFW_KEY_M,     mode);
+  bind_key_toggle(GLFW_KEY_S,     speed);
+  bind_key_toggle(GLFW_KEY_P,     paused);
+  bind_key_toggle(GLFW_KEY_SPACE, step);
+  bind_key_toggle(GLFW_KEY_V,     verbose);
+}
+
 int gl_ok=0;
 int gl_pause=0;
 double t0;
 
-const char *vertex_shader =
-  "#version 410\n"
-  "layout (location = 0) in vec3 vp;"
-  "layout (location = 1) in vec2 vt;"
-  "out vec2 coords;"
-  "void main () {"
-  "  coords = vt;"
-  "  gl_Position = vec4(vp, 1.0);"
-  "}";
+const char *vs_name = "vs_pass.glsl";
+const char *fs_name = "fs_screen.glsl";
 
-const char *fragment_shader =
-  "#version 410\n"
-  "in vec2 coords;"
-  "uniform sampler2D tx;"
-  "out vec4 frag_color;"
-  "void main () {"
-  "  frag_color = texture (tx, vec2(coords.x, coords.y));"
-  "}";
+char *load_src(const char *file) {
+  FILE *f = fopen(file, "r");
+  if (!f) {
+    fprintf(stderr,
+      "couldn't open %s\n", file);
+    return NULL;
+  }
+  fseek(f, 0L, SEEK_END);
+  int len = ftell(f);
+  rewind(f);
 
-void rand_data(GLbyte *data, int x, int y, int w, int h) {
-  for (int i=x; i<x+w; i++)
-  for (int j=y; j<y+h; j++)
-  for (int k=0; k<4; k++) {
-    data[j*W*4 + (i*4) + k] = rand() & 0xff;
-    data[j*W*4 + (i*4) + k] = rand() & 0xff;
-    data[j*W*4 + (i*4) + k] = rand() & 0xff;
-    data[j*W*4 + (i*4) + k] = rand() & 0xff;
+  char *src = malloc(len+1);
+  size_t cnt = fread(src, len, 1, f);
+  if (0==cnt)
+    fprintf(stderr, "fread failed\n");
+  fclose(f);
+  src[len] = '\0';
+  return src;
+}
+
+void check_err(const char *m, GLuint *s) {
+  GLint res = GL_FALSE;
+  int log_len;
+  glGetShaderiv(*s, GL_COMPILE_STATUS, &res);
+  glGetShaderiv(*s, GL_INFO_LOG_LENGTH, &log_len);
+  if (log_len > 0) {
+    char *message = malloc(log_len+1);
+    glGetShaderInfoLog(*s, log_len, NULL, message);
+    printf("%s: %s\n", m, message);
+    free(message);
   }
 }
 
-void load_data(char *fname, GLbyte *data, int x, int y) {
-  FILE *f = fopen(fname, "rb");
-  if (f) {
-    fread(data, 4 * x * y, 1, f);
-    fclose(f);
-  } else {
-    fprintf(stderr, "couldn't open %s\n", fname);
-  }
-}
+void load_shaders(GLuint *v, const char *vf,
+                 GLuint *f, const char *ff) {
+  char *v_src = load_src(vf);
+  char *f_src = load_src(ff);
+  *v = glCreateShader(GL_VERTEX_SHADER);
+  *f = glCreateShader(GL_FRAGMENT_SHADER);
+  glShaderSource(*v, 1, (const char*const*)&v_src, NULL);
+  glShaderSource(*f, 1, (const char*const*)&f_src, NULL);
+  glCompileShader(*v);
+  glCompileShader(*f);
+  free(v_src);
+  free(f_src);
 
+  /* check */
+  check_err("vertex shader", v);
+  check_err("fragment shader", f);
+}
 int display_init(int argc, char **argv) {
 
   GLuint width = argc > 1 ?
@@ -86,12 +122,11 @@ int display_init(int argc, char **argv) {
    -size, -size, 0.0f,
    -size,  size, 0.0f };
 
-  GLfloat texcoords[] = { 0.0f, 0.0f, 1.0f,
-                          0.0f, 1.0f, 1.0f,
-                          1.0f, 1.0f, 0.0f,
-                          1.0f, 0.0f, 0.0f };
-
-  load_data("space.bin", data, W, H);
+  GLfloat texcoords[] = {
+    0.0f, 0.0f, 1.0f,
+    0.0f, 1.0f, 1.0f,
+    1.0f, 1.0f, 0.0f,
+    1.0f, 0.0f, 0.0f };
 
   if (!glfwInit()) {
     fprintf(stderr,
@@ -153,17 +188,8 @@ int display_init(int argc, char **argv) {
   glEnableVertexAttribArray(0);
   glEnableVertexAttribArray(1);
 
-  /* vertex shader */
-  vert_shader = glCreateShader(GL_VERTEX_SHADER);
-  glShaderSource(vert_shader, 1,
-    &vertex_shader, NULL);
-  glCompileShader(vert_shader);
-
-  /* fragment shader */
-  frag_shader = glCreateShader(GL_FRAGMENT_SHADER);
-  glShaderSource(frag_shader, 1,
-    &fragment_shader, NULL);
-  glCompileShader(frag_shader);
+  load_shaders(&vert_shader, vs_name,
+               &frag_shader, fs_name);
 
   /* link glsl program */
   shader_prog = glCreateProgram();
@@ -171,21 +197,23 @@ int display_init(int argc, char **argv) {
   glAttachShader(shader_prog, vert_shader);
   glLinkProgram(shader_prog);
 
-  GLuint tex;
-  glGenTextures( 1, &tex );
+  GLuint tex[2];
+  glGenTextures( 2, tex );
   glActiveTexture( GL_TEXTURE0 );
-  glBindTexture( GL_TEXTURE_2D, tex );
-
-  glTexImage2D( GL_TEXTURE_2D, 0, GL_RGBA, W, H, 0, GL_RGBA, GL_UNSIGNED_BYTE, data );
+  glBindTexture( GL_TEXTURE_2D, tex[0] );
+  glTexImage2D( GL_TEXTURE_2D, 0, GL_RGBA, TEX_W, TEX_H, 0, GL_RGBA, GL_UNSIGNED_BYTE, mem_ptr );
   glGenerateMipmap( GL_TEXTURE_2D );
   glTexParameteri( GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE );
   glTexParameteri( GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE );
   glTexParameteri( GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST );
   glTexParameteri( GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_NEAREST );
 
+  GLuint frag_mode = glGetUniformLocation(shader_prog, "mode");
   gl_ok = 1;
 
   printf("%9.6f, GL_init OK\n", glfwGetTime()-t0);
+  glfwSetKeyCallback(window, key_callback);
+
   /* main loop */
   while (!glfwWindowShouldClose(window)) {
     /* clear */
@@ -196,10 +224,10 @@ int display_init(int argc, char **argv) {
     glUseProgram(shader_prog);
     glBindVertexArray(vao);
 
+    glUniform1i(frag_mode, mode);
+
     /* draw */
-    //rand_data(data, 12, 12, 24, 24);
-    //add_noise(data);
-    glTexSubImage2D( GL_TEXTURE_2D, 0, 0, 0, W, H, GL_RGBA, GL_UNSIGNED_BYTE, data );
+    glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, TEX_W, TEX_H, GL_RGBA, GL_UNSIGNED_BYTE, mem_ptr );
     glDrawArrays(GL_TRIANGLES, 0, 6);
 
     glfwPollEvents();
@@ -215,24 +243,49 @@ int display_init(int argc, char **argv) {
   return 0;
 }
 
-void *cpu(void *args) {
+void cpu_step(cpu *c) {
 
-  void *ptr = args;
-  printf("ptr = %p\n", ptr);
+  c->op = mem[PC];
+  if (verbose) reg_print(c);
+  PC++;
+  ((void(*)(cpu*))ops[c->op])(c);
+  c->cycl++;
 
-  printf("%9.3f, GB starting...\n", glfwGetTime()-t0);
+}
+
+void *work(void *args) {
+
+  char *romname = (char*)args;
+  printf("romname = %s\n", romname);
+  u16 load_at = 0;
+  //mem_clear(mem_ptr, MEMSIZE);
+  //mem_load(&mem_ptr[load_at], romname);
+  //mem_print(mem_ptr, 32);
+  //cpu c = {0};
+  cpu c = {0};
+  ops_init();
+
+  printf("%9.3f, CPU starting...\n", glfwGetTime()-t0);
   printf("%9.3f, reset ok, waiting for GL...\n", glfwGetTime()-t0);
 
   while (!gl_ok) usleep(10);
   printf("%9.3f, GL OK\n", glfwGetTime() - t0);
 
   while (gl_ok) {
-    if (0==gl_pause) {
-      for (int i=0; i<H; i++)
-      for (int j=0; j<W; j++)
-      for (int c=0; c<4; c++)
-        data[i*W*4 + j*4 + c] = rand() & 0xff;
-        usleep(100000);
+    if (reset) {
+      reset=0;
+      mem_clear(mem_ptr, MEMSIZE);
+      mem_load(&mem_ptr[load_at], romname);
+      c = (cpu){0};
+    }
+    if (!fail) {
+      if (speed) usleep(10000);
+      if (!paused || step) {
+        step = 0;
+        cpu_step(&c);
+      }
+    } else {
+      usleep(10000);
     }
   }
 
@@ -243,7 +296,8 @@ void *cpu(void *args) {
 int main(int argc, char **argv) {
 
   pthread_t cpu_thread;
-  if(pthread_create(&cpu_thread, NULL, cpu, argv[1])) {
+  char *romname = "invaders.rom";
+  if(pthread_create(&cpu_thread, NULL, work, (void*)romname)) {
     fprintf(stderr, "Error creating thread\n");
     return 1;
   }
