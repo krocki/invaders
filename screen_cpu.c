@@ -13,8 +13,8 @@
 
 #include <GLFW/glfw3.h>
 
-#define TEX_W 64
-#define TEX_H 64
+#define TEX_W 256
+#define TEX_H 256
 #define SCR_W 512
 #define SCR_H 512
 
@@ -24,12 +24,18 @@
 { if (action == GLFW_PRESS && key == (x)) (y) = (y); if (action == GLFW_RELEASE && key == (x)) { (y) = 1-(y); printf(#x ", " #y "=%u\n", (y));} }
 
 
-u8 mode=0;
-u8 speed=0;
+u8 mode=1;
+u8 speed=1;
 u8 paused=0;
 u8 step=0;
 u8 verbose=0;
 u8 reset=1;
+
+u8 scr_ptr[256 * 256 * 4];
+float mem_offset_x = 0.0f;
+float mem_offset_y = 0.0f;
+float mem_scale_x = 1.0f;
+float mem_scale_y = 0.05f;
 
 void key_callback(GLFWwindow* window, int key, int scancode, int action, int mods) {
 
@@ -39,6 +45,38 @@ void key_callback(GLFWwindow* window, int key, int scancode, int action, int mod
   bind_key_toggle(GLFW_KEY_P,     paused);
   bind_key_toggle(GLFW_KEY_SPACE, step);
   bind_key_toggle(GLFW_KEY_V,     verbose);
+  if (action == GLFW_PRESS || action == GLFW_REPEAT) {
+    switch (key) {
+      case GLFW_KEY_EQUAL:
+        mem_scale_x /= 2.0f; if (mem_scale_x < 0.01f) mem_scale_x = 0.01f;
+        mem_scale_y /= 2.0f; if (mem_scale_y < 0.01f) mem_scale_y = 0.01f;
+        printf("mem scale = %f %f\n", mem_scale_x, mem_scale_y);
+        break;
+      case GLFW_KEY_MINUS:
+        mem_scale_x *= 2.0f; if (mem_scale_x >= 1.0f) mem_scale_x = 1.0f;
+        mem_scale_y *= 2.0f; if (mem_scale_y >= 1.0f) mem_scale_y = 1.0f;
+        printf("mem scale = %f %f\n", mem_scale_x, mem_scale_y);
+        break;
+      case GLFW_KEY_LEFT:
+        mem_offset_x -= mem_scale_x/4; if (mem_offset_x < 0) mem_offset_x = 0;
+        printf("mem offset x = %f\n", mem_offset_x);
+        break;
+      case GLFW_KEY_RIGHT:
+        mem_offset_x += mem_scale_x/4; if (mem_offset_x > 1.0f) mem_offset_x = 1.0f;
+        printf("mem offset x = %f\n", mem_offset_x);
+        break;
+      case GLFW_KEY_UP:
+        mem_offset_y -= mem_scale_y/4; if (mem_offset_y < 0) mem_offset_y = 0;
+        printf("mem offset y = %f\n", mem_offset_y);
+        break;
+      case GLFW_KEY_DOWN:
+        mem_offset_y += mem_scale_y/4; if (mem_offset_y > 1.0f) mem_offset_y = 1.0f;
+        printf("mem offset y = %f\n", mem_offset_y);
+        break;
+      default:
+        break;
+    }
+  }
 }
 
 int gl_ok=0;
@@ -199,6 +237,7 @@ int display_init(int argc, char **argv) {
 
   GLuint tex[2];
   glGenTextures( 2, tex );
+
   glActiveTexture( GL_TEXTURE0 );
   glBindTexture( GL_TEXTURE_2D, tex[0] );
   glTexImage2D( GL_TEXTURE_2D, 0, GL_RGBA, TEX_W, TEX_H, 0, GL_RGBA, GL_UNSIGNED_BYTE, mem_ptr );
@@ -209,6 +248,9 @@ int display_init(int argc, char **argv) {
   glTexParameteri( GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_NEAREST );
 
   GLuint frag_mode = glGetUniformLocation(shader_prog, "mode");
+  GLuint frag_scale = glGetUniformLocation(shader_prog, "mem_scale");
+  GLuint frag_offset = glGetUniformLocation(shader_prog, "mem_offset");
+
   gl_ok = 1;
 
   printf("%9.6f, GL_init OK\n", glfwGetTime()-t0);
@@ -225,9 +267,17 @@ int display_init(int argc, char **argv) {
     glBindVertexArray(vao);
 
     glUniform1i(frag_mode, mode);
+    glUniform2f(frag_scale, mem_scale_x, mem_scale_y);
+    glUniform2f(frag_offset, mem_offset_x, mem_offset_y);
 
     /* draw */
-    glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, TEX_W, TEX_H, GL_RGBA, GL_UNSIGNED_BYTE, mem_ptr );
+    if (mode == 1) {
+      mem_1bpp(scr_ptr, &mem_ptr[0x2400], 224, 256);
+      glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, TEX_W, 224, GL_RGBA, GL_UNSIGNED_BYTE, scr_ptr );
+    }
+    else {
+      glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, TEX_W, TEX_H, GL_RGBA, GL_UNSIGNED_BYTE, mem_ptr );
+    }
     glDrawArrays(GL_TRIANGLES, 0, 6);
 
     glfwPollEvents();
@@ -279,7 +329,7 @@ void *work(void *args) {
       c = (cpu){0};
     }
     if (!fail) {
-      if (speed) usleep(10000);
+      if (speed) usleep(100);
       if (!paused || step) {
         step = 0;
         cpu_step(&c);
