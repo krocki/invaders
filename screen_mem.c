@@ -46,7 +46,7 @@ int gl_pause=0;
 double t0;
 
 const char *vs_name = "vs_pass.glsl";
-const char *fs_name = "fs_screen.glsl";
+const char *fs_name = "fs_mem.glsl";
 
 char *load_src(const char *file) {
   FILE *f = fopen(file, "r");
