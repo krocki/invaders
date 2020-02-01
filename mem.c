@@ -3,13 +3,13 @@
 u8 mem[MEMSIZE];
 u8 *mem_ptr = mem;
 
-void mem_load(u8 *at, char *fname) {
+int mem_load(u8 *at, char *fname) {
 
   FILE *f = fopen(fname, "rb");
   if (!f) {
     fprintf(stderr,
       "couldn't open %s\n", fname);
-    return;
+    return -1;
   }
 
   fseek(f, 0, SEEK_END);
@@ -21,6 +21,7 @@ void mem_load(u8 *at, char *fname) {
     fname, n, len);
 
   fclose(f);
+  return 0;
 }
 
 void mem_clear(u8 *a, u32 len) {

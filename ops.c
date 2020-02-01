@@ -1,7 +1,5 @@
 #include "defs.h"
 
-int fail=0;
-
 u8* ptrs(cpu* c, u8 idx) {
     u8* _ptrs[8] = { &B, &C, &D, &E, &H, &L, 0, &A};
     return _ptrs[idx];
@@ -18,7 +16,26 @@ void w16(u16 a, u16 v) { w8(a,v&0xff); w8(a+1,v>>8); }
 
 void push16(cpu *c, u16 v) { SP -= 2; w16(SP, v); }
 u16 pop16(cpu *c) { u16 v = r16(SP); SP+=2; return v; }
-void unk(cpu *c)  { fail=1; printf("UNK 0x%04x\n", c->op); };
+void unk(cpu *c)  { c->fail=1; printf("UNK 0x%04x\n", c->op); };
+
+void port_in(cpu *c) {
+  if (c->port_in) {
+    A = ((u8 (*)(cpu *c, u8))c->port_in)( c, f8(c) );
+  } else {
+    puts("port_in is 0");
+    c->fail = 1;
+  }
+}
+
+void port_out(cpu *c) {
+  if (c->port_out) {
+     ((void (*)(cpu *, u8, u8))c->port_out)( c, f8(c), A );
+  } else {
+    puts("port_out is 0");
+    c->fail = 1;
+  }
+}
+
 void nop(cpu *c)  { };
 
 void dad(cpu *c, u16 v) {
@@ -161,6 +178,9 @@ void ops_init() {
   ops[0x32]=&sta_i16;
   ops[0x3a]=&lda_i16;
 
+  ops[0xdb]=&port_in;
+  ops[0xd3]=&port_out;
+
 }
 
 const char *optxt[256] =
@@ -181,7 +201,7 @@ const char *optxt[256] =
   "---", "---",   "---", "---", "---", "---", "---", "---", "---", "---", "---", "---", "---", "---", "---", "---",
 
   "RNZ", "POP BC",   "JNZ", "JMP", "CNZ", "PUSH BC", "ADI", "RST 0", "RZ", "RET", "JZ", "---", "CZ", "CALL", "ACI", "RST 1",
-  "RNC", "POP DE",   "JNC", "OUT", "CNC", "PUSH DE", "SUI", "RST 2", "RC", "RET", "JC", "---", "CC", "CALL", "SBI", "RST 3",
+  "RNC", "POP DE",   "JNC", "OUT", "CNC", "PUSH DE", "SUI", "RST 2", "RC", "RET", "JC", "INP", "CC", "CALL", "SBI", "RST 3",
   "RPO", "POP HL",   "JPO", "XTHL", "CPO", "PUSH HL", "AND D8", "RST 4", "RPE", "PCHL", "JPE", "XCHG", "CPE", "CALL", "XRI", "RST 5",
   "RP", "POP AF",   "JP",  "DI", "CP", "PUSH AF", "ORI", "RST 6", "RM", "SPHL", "JM", "---", "CM", "CALL", "CPI", "RST 7"
 };

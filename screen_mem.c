@@ -278,7 +278,7 @@ void *work(void *args) {
       mem_load(&mem_ptr[load_at], romname);
       c = (cpu){0};
     }
-    if (!fail) {
+    if (!c.fail) {
       if (speed) usleep(10000);
       if (!paused || step) {
         step = 0;
