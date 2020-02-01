@@ -62,7 +62,7 @@ void mem_1bpp(u8 *s, u8 *m, u16 w, u16 h) {
 void reg_print(cpu *c) {
   printf("%04x: [BC] [%02x%02x] [DE] [%02x%02x] "
          "[HL] [%02x%02x] [AF] [%02x%02x %c%c%c%c%c%c%c%c] "
-         "[SP] [%04x] #[%08lu] OP=%02x : %-8s\n",
+         "[SP] [%04x] #[%08llu] OP=%02x : %-8s\n",
            PC, B,  C,  D,  E,
            H,  L,  A,  F,
            fS ? 'S' : '-',

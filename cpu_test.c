@@ -23,7 +23,7 @@ void cpu_step(cpu *c) {
 }
 
 void port_out_func(cpu *c, u8 v, u8 a) {
-  printf("port_out_func a=%u, v=%u\n", a, v);
+  //printf("port_out_func a=%u, v=%u\n", a, v);
   c->halt = 1;
 }
 
@@ -43,7 +43,7 @@ u8 port_in_func(cpu *c, u8 port) {
     default:
       break;
   }
-  printf("port_in_func op=%u, port=%u\n", C, port);
+  //printf("port_in_func op=%u, port=%u\n", C, port);
   return 0xff;
 }
 
@@ -101,6 +101,6 @@ int main(int argc, char **argv) {
     }
   }
 
-  printf("terminated normally\n");
+  //printf("terminated normally\n");
   return 0;
 }
