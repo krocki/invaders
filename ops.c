@@ -22,8 +22,7 @@ void port_in(cpu *c) {
   if (c->port_in) {
     A = ((u8 (*)(cpu *c, u8))c->port_in)( c, f8(c) );
   } else {
-    puts("port_in is 0");
-    c->fail = 1;
+    c->fail = 0;
   }
 }
 
@@ -31,8 +30,7 @@ void port_out(cpu *c) {
   if (c->port_out) {
      ((void (*)(cpu *, u8, u8))c->port_out)( c, f8(c), A );
   } else {
-    puts("port_out is 0");
-    c->fail = 1;
+    c->fail = 0;
   }
 }
 
@@ -140,14 +138,21 @@ void rst_7(cpu *c) { /*call(c, 0x00);*/ printf("rst 38\n"); }
 void ldsp(cpu *c) { SP = f16(c); }
 void x11(cpu *c)  { DE = f16(c); }
 void x21(cpu *c)  { HL = f16(c); }
-void x1a(cpu *c)  { A = r16(DE); }
+void x2a(cpu *c)  { HL = r16(f16(c)); }
+void x22(cpu *c)  { w16(f16(c), HL); }
 
 void x03(cpu *c) { BC++; }
 void x13(cpu *c) { DE++; }
 void x23(cpu *c) { HL++; }
 void x33(cpu *c) { SP++; }
+
+void x02(cpu *c) { w8(BC, A);    } /* STAX BC */
+void x12(cpu *c) { w8(DE, A);    } /* STAX DE */
+void x0a(cpu *c) { A = r8(BC);   } /* LDAX BC */
+void x1a(cpu *c) { A = r8(DE);   } /* LDAX DE */
+
 // dec 16cpu *c
-void x0b(cpu *c) { BC--; }
+void x0b(cpu *c) { BC--; } /* DCX B */
 void x1b(cpu *c) { DE--; }
 void x2b(cpu *c) { HL--; }
 void x3b(cpu *c) { SP--; }
@@ -160,17 +165,78 @@ void x3b(cpu *c) { SP--; }
 //void xe8(cpu *c) { SP = add16sp((s8)(f8()));   } // SP = SP + s8
 //void xf8(cpu *c) { HL = add16sp((s8)(f8()));   } // LD = SP + s8
 
+void stc(cpu *c) { fC = 1;   } /* STC */
+void cmc(cpu *c) { fC = !fC; } /* CMC */
+void cma(cpu *c) { A= ~A;     } /* CMA */
+void daa(cpu *c) {
+  u8 a = A; u8 adj = fC ? 0x60 : 0x00;
+  if (fH) adj |= 0x06;
+  if (!fS) {
+    if ((a & 0x0f) > 0x09) adj |= 0x06;
+    if (a > 0x99) adj |= 0x60;
+    a += adj;
+  } else a -= adj;
+  fC = (adj >= 0x60);
+  fH = 0; fZ = (a == 0);
+  A = a;
+}
+
+void rrc(cpu *c) {
+  fC = A & 0x1;
+  A = (A >> 1) | (fC << 7);
+}
+void rlc(cpu *c) {
+  fC = A >> 7;
+  A = (A << 1) | fC;
+}
+
+void ral(cpu *c) {
+  u8 cy = fC;
+  fC = A >> 7;
+  A = (A << 1) | cy;
+}
+
+void rar(cpu *c) {
+  u8 cy = fC;
+  fC = A & 0x1;
+  A = (A >> 1) | (cy << 7);
+}
+
+void sphl(cpu *c) {
+  SP = HL;
+}
+
+void pchl(cpu *c) {
+  PC = HL;
+}
+
+void xthl(cpu *c) {
+  u16 v = r16(SP);
+  u16 w = HL;
+  HL = v;
+  w16(SP, w);
+}
+
 void ops_init() {
 
   for (u16 i=0; i<256; i++)
     ops[i] = &unk;
 
+  ops[0x27]=&daa;
+  ops[0x2f]=&cma;
+  ops[0x37]=&stc;
+  ops[0x3f]=&cmc;
   ops[0x00]=&nop;
   ops[0x06]=&ldrr;
   ops[0x0e]=&ldrr;
+  ops[0x02]=&x02; /* STAX BC */
+  ops[0x12]=&x02; /* STAX DE */
+  ops[0x0a]=&x0a; /* LDAX BC */
+  ops[0x1a]=&x0a; /* LDAX DE */
   ops[0x11]=&x11; /* BC := n16 */
-  ops[0x1a]=&x1a; /* A := [DE] */
   ops[0x21]=&x21; /* HL := n16 */
+  ops[0x2a]=&x2a; /* HL := [a16] */
+  ops[0x22]=&x22; /* [a16] := HL*/
   ops[0x13]=&x13; /* DE++ */
   ops[0x23]=&x23; /* HL++ */
   ops[0x16]=&ldrr;
@@ -216,16 +282,10 @@ void ops_init() {
   ops[0x34]=&incdec; ops[0x35]=&incdec;
   ops[0x3c]=&incdec; ops[0x3d]=&incdec;
 
-  ops[0xc7]=&rst_0;
-  ops[0xcf]=&rst_1;
-  ops[0xd7]=&rst_2;
-  ops[0xdf]=&rst_3;
-  ops[0xe7]=&rst_4;
-  ops[0xef]=&rst_5;
-  ops[0xf7]=&rst_6;
-  ops[0xff]=&rst_7;
-
-  ops[0x0f]=&alu; /* rrc */
+  ops[0xc7]=&rst_0; ops[0xcf]=&rst_1;
+  ops[0xd7]=&rst_2; ops[0xdf]=&rst_3;
+  ops[0xe7]=&rst_4; ops[0xef]=&rst_5;
+  ops[0xf7]=&rst_6; ops[0xff]=&rst_7;
 
   for (u8 i=0x80; i<0xc0; i++) ops[i] = &alu;
   ops[0xc6]=&alu; ops[0xce]=&alu;
@@ -236,32 +296,23 @@ void ops_init() {
   ops[0xf3]=&di;
   ops[0xfb]=&ei;
 
-
   /* push16 group */
-  ops[0xc5]=&push_bc;
-  ops[0xd5]=&push_de;
-  ops[0xe5]=&push_hl;
-  ops[0xf5]=&push_af;
+  ops[0xc5]=&push_bc; ops[0xd5]=&push_de;
+  ops[0xe5]=&push_hl; ops[0xf5]=&push_af;
 
   /* pop16 group */
-  ops[0xc1]=&pop_bc;
-  ops[0xd1]=&pop_de;
-  ops[0xe1]=&pop_hl;
-  ops[0xf1]=&pop_af;
+  ops[0xc1]=&pop_bc; ops[0xd1]=&pop_de;
+  ops[0xe1]=&pop_hl; ops[0xf1]=&pop_af;
 
   /* dad */
-  ops[0x09]=&dad_bc;
-  ops[0x19]=&dad_de;
-  ops[0x29]=&dad_hl;
-  ops[0x39]=&dad_sp;
+  ops[0x09]=&dad_bc; ops[0x19]=&dad_de;
+  ops[0x29]=&dad_hl; ops[0x39]=&dad_sp;
 
   ops[0xeb]=&xchg;
   ops[0xd3]=&out;
 
-  ops[0x01]=&lxi_bc;
-  ops[0x11]=&lxi_de;
-  ops[0x21]=&lxi_hl;
-  ops[0x31]=&lxi_sp;
+  ops[0x01]=&lxi_bc; ops[0x11]=&lxi_de;
+  ops[0x21]=&lxi_hl; ops[0x31]=&lxi_sp;
 
   ops[0x32]=&sta_i16;
   ops[0x3a]=&lda_i16;
@@ -281,6 +332,15 @@ void ops_init() {
     //ops[0x29] = &x29; ops[0x39] = &x39;
     //ops[0xe8] = &xe8; ops[0xf8] = &xf8;
   // end 16-bit ALU
+
+  ops[0x07]=&rlc; /* rlc */
+  ops[0x17]=&ral; /* ral */
+  ops[0x0f]=&rrc; /* rrc */
+  ops[0x1f]=&rar; /* rar */
+  ops[0xe9]=&pchl;
+  ops[0xf9]=&sphl;
+  ops[0xe3]=&xthl;
+
 }
 
 const char *optxt[256] =

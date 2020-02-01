@@ -89,6 +89,7 @@ int main(int argc, char **argv) {
 
   u32 i=0;
   mem_print(&mem[0x100], 0x10);
+  printf("\n--\n");
   while (!(c.fail) && !(c.halt)) {
     if (slowmo) sleep(1);
     if (verbose) reg_print(&c);
@@ -96,11 +97,11 @@ int main(int argc, char **argv) {
     cpu_step(&c);
 
     if (cycles > 0 && c.cycl > cycles) {
-      printf("max cycles reached = %u\n", cycles);
+      printf("\n--\nmax cycles reached = %u\n", cycles);
       return 1;
     }
   }
 
-  //printf("terminated normally\n");
+  printf("\n--\nterminated normally\n");
   return 0;
 }
