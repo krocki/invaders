@@ -19,16 +19,18 @@ u16 pop16(cpu *c) { u16 v = r16(SP); SP+=2; return v; }
 void unk(cpu *c)  { c->fail=1; printf("UNK 0x%04x\n", c->op); };
 
 void port_in(cpu *c) {
+  u8 v = f8(c);
   if (c->port_in) {
-    A = ((u8 (*)(cpu *c, u8))c->port_in)( c, f8(c) );
+    A = ((u8 (*)(cpu *c, u8))c->port_in)( c, v );
   } else {
     c->fail = 0;
   }
 }
 
 void port_out(cpu *c) {
+  u8 v = f8(c);
   if (c->port_out) {
-     ((void (*)(cpu *, u8, u8))c->port_out)( c, f8(c), A );
+     ((void (*)(cpu *, u8, u8))c->port_out)( c, v, A );
   } else {
     c->fail = 0;
   }
@@ -230,9 +232,9 @@ void ops_init() {
   ops[0x06]=&ldrr;
   ops[0x0e]=&ldrr;
   ops[0x02]=&x02; /* STAX BC */
-  ops[0x12]=&x02; /* STAX DE */
+  ops[0x12]=&x12; /* STAX DE */
   ops[0x0a]=&x0a; /* LDAX BC */
-  ops[0x1a]=&x0a; /* LDAX DE */
+  ops[0x1a]=&x1a; /* LDAX DE */
   ops[0x11]=&x11; /* BC := n16 */
   ops[0x21]=&x21; /* HL := n16 */
   ops[0x2a]=&x2a; /* HL := [a16] */
