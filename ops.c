@@ -23,7 +23,8 @@ void port_in(cpu *c) {
   if (c->port_in) {
     A = ((u8 (*)(cpu *c, u8))c->port_in)( c, v );
   } else {
-    c->fail = 0;
+    fprintf(stderr, "port_in is 0\n");
+    c->fail = 1;
   }
 }
 
@@ -32,7 +33,8 @@ void port_out(cpu *c) {
   if (c->port_out) {
      ((void (*)(cpu *, u8, u8))c->port_out)( c, v, A );
   } else {
-    c->fail = 0;
+    fprintf(stderr, "port_out is 0\n");
+    c->fail = 1;
   }
 }
 
@@ -95,6 +97,7 @@ void di(cpu *c) { c->ei = 0; }
 void ei(cpu *c) { c->ei = 1; }
 
 void call(cpu *c) { push16(c, PC+2); PC=r16(PC); }
+void rst(cpu *c, u8 v)  { push16(c, PC); PC=v; }
 void ret(cpu *c)  { PC = pop16(c); }
 void jmp(cpu *c)  { PC = f16(c);}
 
@@ -128,14 +131,14 @@ void rpo(cpu *c)  { PC = !fP ? pop16(c) : PC; } //RPO a16
 void rm(cpu *c)   { PC =  fS ? pop16(c) : PC; } //RM  a16
 void rp(cpu *c)   { PC = !fS ? pop16(c) : PC; } //RP  a16
 
-void rst_0(cpu *c) { /*call(c, 0x00);*/ printf("rst 00\n"); }
-void rst_1(cpu *c) { /*call(c, 0x00);*/ printf("rst 08\n"); }
-void rst_2(cpu *c) { /*call(c, 0x00);*/ printf("rst 10\n"); }
-void rst_3(cpu *c) { /*call(c, 0x00);*/ printf("rst 18\n"); }
-void rst_4(cpu *c) { /*call(c, 0x00);*/ printf("rst 20\n"); }
-void rst_5(cpu *c) { /*call(c, 0x00);*/ printf("rst 28\n"); }
-void rst_6(cpu *c) { /*call(c, 0x00);*/ printf("rst 30\n"); }
-void rst_7(cpu *c) { /*call(c, 0x00);*/ printf("rst 38\n"); }
+void rst_0(cpu *c) { rst(c, 0x00); }
+void rst_1(cpu *c) { rst(c, 0x08); }
+void rst_2(cpu *c) { rst(c, 0x10); }
+void rst_3(cpu *c) { rst(c, 0x18); }
+void rst_4(cpu *c) { rst(c, 0x20); }
+void rst_5(cpu *c) { rst(c, 0x28); }
+void rst_6(cpu *c) { rst(c, 0x30); }
+void rst_7(cpu *c) { rst(c, 0x38); }
 
 void ldsp(cpu *c) { SP = f16(c); }
 void x11(cpu *c)  { DE = f16(c); }

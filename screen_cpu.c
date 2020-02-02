@@ -30,6 +30,12 @@ u8 paused=0;
 u8 step=0;
 u8 verbose=0;
 u8 reset=1;
+u8 left=0;
+u8 right=0;
+u8 fire=0;
+u8 credit=0;
+u8 start1=0;
+u8 start2=0;
 
 u8 scr_ptr[256 * 256 * 4];
 float mem_offset_x = 0.0f;
@@ -39,6 +45,12 @@ float mem_scale_y = 0.05f;
 
 void key_callback(GLFWwindow* window, int key, int scancode, int action, int mods) {
 
+  bind_key(GLFW_KEY_A,     left);
+  bind_key(GLFW_KEY_D,     right);
+  bind_key(GLFW_KEY_W,     fire);
+  bind_key(GLFW_KEY_C,     credit);
+  bind_key(GLFW_KEY_1,     start1);
+  bind_key(GLFW_KEY_2,     start2);
   bind_key_toggle(GLFW_KEY_R,     reset);
   bind_key_toggle(GLFW_KEY_M,     mode);
   bind_key_toggle(GLFW_KEY_S,     speed);
@@ -136,6 +148,7 @@ void load_shaders(GLuint *v, const char *vf,
   check_err("vertex shader", v);
   check_err("fragment shader", f);
 }
+
 int display_init(int argc, char **argv) {
 
   GLuint width = argc > 1 ?
@@ -293,7 +306,53 @@ int display_init(int argc, char **argv) {
   return 0;
 }
 
+u8 si = 0x00;
+u8 sr0 = 0x00;
+u8 sr1 = 0x00;
+
+void port_out_func(cpu *c, u8 port, u8 v) {
+  if (4==port) {
+    sr0 = sr1;
+    sr1 = v;
+  }
+  if (2==port) {
+    si = v & 0x7;
+  }
+}
+
+u8 port_in_func(cpu *c, u8 port) {
+  //printf("port_in_func op=%u, port=%u\n", C, port);
+  if (1==port) {
+    return (
+            (credit & 0x1) | (start2 << 1) | (start1 << 2) |
+            (fire << 4) | (left << 5) | (right << 6)
+            );
+  }
+  if (0==port) {
+    return ((fire << 4) | (left << 5) | (right << 6));
+  }
+  if (3==port) {
+    u16 v = sr1 << 8 | sr0;
+    v = (v >> (8 - si)) & 0xff;
+    return v;
+  }
+  else return 0x00;
+}
+
+u16 cnt = 0;
 void cpu_step(cpu *c) {
+
+  cnt++;
+  // interrupts
+  if (4096==cnt && c->ei) {
+    ((void(*)(cpu*))ops[0xcf])(c);
+    cnt=0;
+    return;
+  }
+  if (2048==cnt && c->ei) {
+    ((void(*)(cpu*))ops[0xd7])(c);
+    return;
+  }
 
   c->op = mem[PC];
   if (verbose) reg_print(c);
@@ -327,9 +386,11 @@ void *work(void *args) {
       mem_clear(mem_ptr, MEMSIZE);
       mem_load(&mem_ptr[load_at], romname);
       c = (cpu){0};
+      c.port_in = &port_in_func;
+      c.port_out = &port_out_func;
     }
     if (!c.fail) {
-      if (speed) usleep(10);
+      if (speed) if (c.cycl % 5 == 0) usleep(1);
       if (!paused || step) {
         step = 0;
         cpu_step(&c);

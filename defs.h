@@ -34,6 +34,7 @@ typedef struct {
 } regs;
 
 typedef struct {
+  u16 cnt;
   u8 fail; /* trap */
   u8 halt;
   u8 ei; /* enable interrupts */
