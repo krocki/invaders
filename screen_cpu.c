@@ -329,13 +329,13 @@ void *work(void *args) {
       c = (cpu){0};
     }
     if (!fail) {
-      if (speed) usleep(100);
+      if (speed) usleep(10);
       if (!paused || step) {
         step = 0;
         cpu_step(&c);
       }
     } else {
-      usleep(10000);
+      usleep(1000);
     }
   }
 
