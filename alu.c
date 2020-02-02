@@ -1,10 +1,10 @@
 #include "defs.h"
 
 u8 parity(u8 v) {
-  u8 n = 1;
+  u8 n = 0;
   for (u8 i=0; i<8; i++)
-    n ^= ((v >> i) & 1);
-  return n;
+    n += ((v >> i) & 1);
+  return !!n;
 }
 
 u8 inc8(cpu* c, u8 v) {

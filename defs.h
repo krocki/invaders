@@ -7,11 +7,6 @@ typedef uint16_t u16;
 typedef uint32_t u32;
 typedef uint64_t u64;
 
-typedef int8_t  s8;
-typedef int16_t s16;
-typedef int32_t s32;
-typedef int64_t s64;
-
 typedef struct {
   union {
     struct {
@@ -34,14 +29,10 @@ typedef struct {
 } regs;
 
 typedef struct {
-  u8 fail; /* trap */
-  u8 halt;
   u8 ei; /* enable interrupts */
   regs r;
   u8 op;
   u64 cycl;
-  void *port_in;
-  void *port_out;
 } cpu;
 
 #define A  (c->r.A)
@@ -74,7 +65,7 @@ extern void alu(cpu *c);
 extern void incdec(cpu *c);
 extern void ldrr(cpu *c);
 extern void reg_print(cpu *c);
-extern int  mem_load(u8 *at, char *fname);
+extern void mem_load(u8 *at, char *fname);
 extern void mem_clear(u8 *a, u32 len);
 extern void mem_print(u8 *a, u32 len);
 extern void mem_1bpp(u8 *dst, u8 *src, u16 w, u16 h);
