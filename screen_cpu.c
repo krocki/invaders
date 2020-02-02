@@ -45,50 +45,50 @@ float mem_scale_y = 0.05f;
 
 void key_callback(GLFWwindow* window, int key, int scancode, int action, int mods) {
 
-  bind_key(GLFW_KEY_A,     left);
-  bind_key(GLFW_KEY_D,     right);
-  bind_key(GLFW_KEY_W,     fire);
-  bind_key(GLFW_KEY_C,     credit);
+  bind_key(GLFW_KEY_LEFT,  left);
+  bind_key(GLFW_KEY_RIGHT, right);
+  bind_key(GLFW_KEY_UP,    fire);
   bind_key(GLFW_KEY_1,     start1);
   bind_key(GLFW_KEY_2,     start2);
+  bind_key(GLFW_KEY_C,     credit);
   bind_key_toggle(GLFW_KEY_R,     reset);
   bind_key_toggle(GLFW_KEY_M,     mode);
   bind_key_toggle(GLFW_KEY_S,     speed);
   bind_key_toggle(GLFW_KEY_P,     paused);
-  bind_key_toggle(GLFW_KEY_SPACE, step);
+  bind_key_toggle(GLFW_KEY_O,     step);
   bind_key_toggle(GLFW_KEY_V,     verbose);
-  if (action == GLFW_PRESS || action == GLFW_REPEAT) {
-    switch (key) {
-      case GLFW_KEY_EQUAL:
-        mem_scale_x /= 2.0f; if (mem_scale_x < 0.01f) mem_scale_x = 0.01f;
-        mem_scale_y /= 2.0f; if (mem_scale_y < 0.01f) mem_scale_y = 0.01f;
-        printf("mem scale = %f %f\n", mem_scale_x, mem_scale_y);
-        break;
-      case GLFW_KEY_MINUS:
-        mem_scale_x *= 2.0f; if (mem_scale_x >= 1.0f) mem_scale_x = 1.0f;
-        mem_scale_y *= 2.0f; if (mem_scale_y >= 1.0f) mem_scale_y = 1.0f;
-        printf("mem scale = %f %f\n", mem_scale_x, mem_scale_y);
-        break;
-      case GLFW_KEY_LEFT:
-        mem_offset_x -= mem_scale_x/4; if (mem_offset_x < 0) mem_offset_x = 0;
-        printf("mem offset x = %f\n", mem_offset_x);
-        break;
-      case GLFW_KEY_RIGHT:
-        mem_offset_x += mem_scale_x/4; if (mem_offset_x > 1.0f) mem_offset_x = 1.0f;
-        printf("mem offset x = %f\n", mem_offset_x);
-        break;
-      case GLFW_KEY_UP:
-        mem_offset_y -= mem_scale_y/4; if (mem_offset_y < 0) mem_offset_y = 0;
-        printf("mem offset y = %f\n", mem_offset_y);
-        break;
-      case GLFW_KEY_DOWN:
-        mem_offset_y += mem_scale_y/4; if (mem_offset_y > 1.0f) mem_offset_y = 1.0f;
-        printf("mem offset y = %f\n", mem_offset_y);
-        break;
-      default:
-        break;
-    }
-  }
+  //if (action == GLFW_PRESS || action == GLFW_REPEAT) {
+  //  switch (key) {
+  //    case GLFW_KEY_EQUAL:
+  //      mem_scale_x /= 2.0f; if (mem_scale_x < 0.01f) mem_scale_x = 0.01f;
+  //      mem_scale_y /= 2.0f; if (mem_scale_y < 0.01f) mem_scale_y = 0.01f;
+  //      printf("mem scale = %f %f\n", mem_scale_x, mem_scale_y);
+  //      break;
+  //    case GLFW_KEY_MINUS:
+  //      mem_scale_x *= 2.0f; if (mem_scale_x >= 1.0f) mem_scale_x = 1.0f;
+  //      mem_scale_y *= 2.0f; if (mem_scale_y >= 1.0f) mem_scale_y = 1.0f;
+  //      printf("mem scale = %f %f\n", mem_scale_x, mem_scale_y);
+  //      break;
+  //    case GLFW_KEY_LEFT:
+  //      mem_offset_x -= mem_scale_x/4; if (mem_offset_x < 0) mem_offset_x = 0;
+  //      printf("mem offset x = %f\n", mem_offset_x);
+  //      break;
+  //    case GLFW_KEY_RIGHT:
+  //      mem_offset_x += mem_scale_x/4; if (mem_offset_x > 1.0f) mem_offset_x = 1.0f;
+  //      printf("mem offset x = %f\n", mem_offset_x);
+  //      break;
+  //    case GLFW_KEY_UP:
+  //      mem_offset_y -= mem_scale_y/4; if (mem_offset_y < 0) mem_offset_y = 0;
+  //      printf("mem offset y = %f\n", mem_offset_y);
+  //      break;
+  //    case GLFW_KEY_DOWN:
+  //      mem_offset_y += mem_scale_y/4; if (mem_offset_y > 1.0f) mem_offset_y = 1.0f;
+  //      printf("mem offset y = %f\n", mem_offset_y);
+  //      break;
+  //    default:
+  //      break;
+  //  }
+  //}
 }
 
 int gl_ok=0;
@@ -344,12 +344,12 @@ void cpu_step(cpu *c) {
 
   cnt++;
   // interrupts
-  if (4096==cnt && c->ei) {
+  if (3172==cnt && c->ei) {
     ((void(*)(cpu*))ops[0xcf])(c);
     cnt=0;
     return;
   }
-  if (2048==cnt && c->ei) {
+  if (1024==cnt && c->ei) {
     ((void(*)(cpu*))ops[0xd7])(c);
     return;
   }
@@ -390,7 +390,7 @@ void *work(void *args) {
       c.port_out = &port_out_func;
     }
     if (!c.fail) {
-      if (speed) if (c.cycl % 5 == 0) usleep(1);
+      if (speed) usleep(1);
       if (!paused || step) {
         step = 0;
         cpu_step(&c);
