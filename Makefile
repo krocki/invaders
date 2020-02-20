@@ -1,5 +1,5 @@
 CC=gcc
-TARGETS = screen screen_mem screen_cpu cpu_test
+TARGETS = screen_cpu
 CFLAGS = -g -O1 -std=c11 -Wfatal-errors -DGL_SILENCE_DEPRECATION
 LFLAGS = -g -L/usr/local/lib -lm
 INCLUDES=
